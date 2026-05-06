@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR Generator</title>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #f0f2f5;
+  }
+  .card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 40px;
+    box-shadow: 0 4px 24px rgba(0,0,0,.08);
+    text-align: center;
+    max-width: 420px;
+    width: 100%;
+  }
+  h1 { font-size: 24px; margin-bottom: 24px; color: #1a1a2e; }
+  .row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+  input {
+    flex: 1;
+    padding: 10px 14px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    font-size: 15px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  input:focus { border-color: #4361ee; }
+  button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    background: #4361ee;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .2s;
+    white-space: nowrap;
+  }
+  button:hover { background: #3a56d4; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  #qrcode {
+    display: flex;
+    justify-content: center;
+    margin-top: 16px;
+    min-height: 160px;
+  }
+  #qrcode img, #qrcode canvas { max-width: 100%; height: auto; }
+  .placeholder {
+    color: #999;
+    font-size: 14px;
+    line-height: 160px;
+  }
+  .error { color: #e63946; font-size: 13px; margin-top: 8px; }
+  .hint { color: #999; font-size: 13px; margin-bottom: 16px; }
+  .actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 16px;
+    min-height: 40px;
+  }
+  .actions button {
+    font-size: 13px;
+    padding: 8px 16px;
+  }
+  .btn-outline {
+    background: transparent;
+    color: #4361ee;
+    border: 2px solid #4361ee;
+  }
+  .btn-outline:hover { background: #eef0ff; }
+  .hidden { display: none; }
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1a1a2e;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    opacity: 0;
+    transition: opacity .3s;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <h1>QR Generator</h1>
+  <div class="row">
+    <input type="text" id="urlInput" placeholder="https://example.com" autofocus>
+    <button id="generateBtn">Generate</button>
+  </div>
+  <div class="hint" id="status">Enter a URL and click Generate</div>
+  <div id="qrcode"><div class="placeholder">QR will appear here</div></div>
+  <div class="actions hidden" id="actions">
+    <button class="btn-outline" id="downloadBtn">⬇ Download PNG</button>
+    <button class="btn-outline" id="copyBtn">📋 Copy</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const input = document.getElementById('urlInput');
+const btn = document.getElementById('generateBtn');
+const qrContainer = document.getElementById('qrcode');
+const status = document.getElementById('status');
+const actions = document.getElementById('actions');
+const downloadBtn = document.getElementById('downloadBtn');
+const copyBtn = document.getElementById('copyBtn');
+const toast = document.getElementById('toast');
+
+let currentQR = null;
+let lastUrl = '';
+
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+function generate() {
+  const url = input.value.trim();
+  if (!url) {
+    status.textContent = 'Please enter a URL';
+    status.className = 'error';
+    return;
+  }
+
+  let target = url;
+  if (!/^https?:\/\//i.test(target)) {
+    target = 'https://' + target;
+  }
+
+  try { new URL(target); } catch {
+    status.textContent = 'Invalid URL';
+    status.className = 'error';
+    return;
+  }
+
+  qrContainer.innerHTML = '';
+  status.textContent = 'Generating…';
+  status.className = 'hint';
+  actions.classList.add('hidden');
+  btn.disabled = true;
+  lastUrl = target;
+
+  setTimeout(() => {
+    try {
+      currentQR = new QRCode(qrContainer, {
+        text: target,
+        width: 256,
+        height: 256,
+        colorDark: '#1a1a2e',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.H
+      });
+      status.textContent = `✓ QR for ${target}`;
+      status.className = 'hint';
+      actions.classList.remove('hidden');
+    } catch (e) {
+      status.textContent = 'Error generating QR code';
+      status.className = 'error';
+    } finally {
+      btn.disabled = false;
+    }
+  }, 50);
+}
+
+// Download PNG — grab the first <canvas> or <img>
+downloadBtn.addEventListener('click', () => {
+  const canvas = qrContainer.querySelector('canvas');
+  const img = qrContainer.querySelector('img');
+  let dataUrl = null;
+
+  if (canvas) {
+    dataUrl = canvas.toDataURL('image/png');
+  } else if (img) {
+    // Fallback: draw img to a temp canvas
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth || 256;
+    c.height = img.naturalHeight || 256;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    dataUrl = c.toDataURL('image/png');
+  }
+
+  if (!dataUrl) { showToast('No QR to download'); return; }
+
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.download = 'qrcode.png';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  showToast('Downloaded!');
+});
+
+// Copy to clipboard
+copyBtn.addEventListener('click', async () => {
+  const canvas = qrContainer.querySelector('canvas');
+  const img = qrContainer.querySelector('img');
+
+  try {
+    if (canvas) {
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      showToast('Copied!');
+    } else if (img) {
+      const c = document.createElement('canvas');
+      c.width = img.naturalWidth || 256;
+      c.height = img.naturalHeight || 256;
+      c.getContext('2d').drawImage(img, 0, 0);
+      const blob = await new Promise(resolve => c.toBlob(resolve, 'image/png'));
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      showToast('Copied!');
+    } else {
+      showToast('No QR to copy');
+    }
+  } catch {
+    // Fallback: copy the URL text
+    try {
+      await navigator.clipboard.writeText(lastUrl);
+      showToast('URL copied (image copy not supported)');
+    } catch {
+      showToast('Copy failed');
+    }
+  }
+});
+
+btn.addEventListener('click', generate);
+input.addEventListener('keydown', e => { if (e.key === 'Enter') generate(); });
+</script>
+</body>
+</html>
