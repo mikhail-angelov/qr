@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QR Generator</title>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -24,13 +25,39 @@
     max-width: 420px;
     width: 100%;
   }
-  h1 { font-size: 24px; margin-bottom: 24px; color: #1a1a2e; }
+  h1 { font-size: 24px; margin-bottom: 20px; color: #1a1a2e; }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    border-bottom: 2px solid #eee;
+    margin-bottom: 24px;
+  }
+  .tab-btn {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    background: transparent;
+    color: #888;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: color .2s, border-color .2s;
+    border-radius: 0;
+  }
+  .tab-btn:hover { color: #4361ee; background: transparent; }
+  .tab-btn.active { color: #4361ee; border-bottom-color: #4361ee; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
   .row {
     display: flex;
     gap: 8px;
     margin-bottom: 24px;
   }
-  input {
+  input[type="text"] {
     flex: 1;
     padding: 10px 14px;
     border: 2px solid #ddd;
@@ -39,7 +66,7 @@
     outline: none;
     transition: border-color .2s;
   }
-  input:focus { border-color: #4361ee; }
+  input[type="text"]:focus { border-color: #4361ee; }
   button {
     padding: 10px 20px;
     border: none;
@@ -72,6 +99,7 @@
     display: flex;
     gap: 8px;
     justify-content: center;
+    flex-wrap: wrap;
     margin-top: 16px;
     min-height: 40px;
   }
@@ -86,6 +114,66 @@
   }
   .btn-outline:hover { background: #eef0ff; }
   .hidden { display: none; }
+
+  /* Decode tab */
+  .drop-zone {
+    border: 2px dashed #ccc;
+    border-radius: 12px;
+    padding: 36px 20px;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+    color: #aaa;
+    font-size: 14px;
+  }
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: #4361ee;
+    background: #f4f6ff;
+    color: #4361ee;
+  }
+  .drop-zone input[type="file"] { display: none; }
+  .drop-zone-icon { font-size: 36px; margin-bottom: 8px; }
+  #decodePreview {
+    margin-top: 16px;
+    display: flex;
+    justify-content: center;
+  }
+  #decodePreview img {
+    max-width: 100%;
+    max-height: 200px;
+    border-radius: 8px;
+    border: 1px solid #eee;
+  }
+  .decode-result {
+    margin-top: 16px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    text-align: left;
+    word-break: break-all;
+  }
+  .decode-result.success {
+    background: #eef7ee;
+    border: 1px solid #b7dfb7;
+    color: #2d6a2d;
+  }
+  .decode-result.fail {
+    background: #fdecea;
+    border: 1px solid #f5c6c6;
+    color: #b22a2a;
+  }
+  .decode-result a {
+    color: inherit;
+    text-decoration: underline;
+  }
+  .decode-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+  .decode-actions button { font-size: 13px; padding: 8px 16px; }
+
   .toast {
     position: fixed;
     bottom: 24px;
@@ -107,21 +195,64 @@
 
 <div class="card">
   <h1>QR Generator</h1>
-  <div class="row">
-    <input type="text" id="urlInput" placeholder="https://example.com" autofocus>
-    <button id="generateBtn">Generate</button>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="generate">Generate</button>
+    <button class="tab-btn" data-tab="decode">Decode</button>
   </div>
-  <div class="hint" id="status">Enter a URL and click Generate</div>
-  <div id="qrcode"><div class="placeholder">QR will appear here</div></div>
-  <div class="actions hidden" id="actions">
-    <button class="btn-outline" id="downloadBtn">⬇ Download PNG</button>
-    <button class="btn-outline" id="copyBtn">📋 Copy</button>
+
+  <!-- Generate tab -->
+  <div class="tab-panel active" id="tab-generate">
+    <div class="row">
+      <input type="text" id="urlInput" placeholder="https://example.com" autofocus>
+      <button id="generateBtn">Generate</button>
+    </div>
+    <div class="hint" id="status">Enter a URL and click Generate</div>
+    <div id="qrcode"><div class="placeholder">QR will appear here</div></div>
+    <div class="actions hidden" id="actions">
+      <button class="btn-outline" id="downloadBtn">⬇ Download PNG</button>
+      <button class="btn-outline" id="copyBtn">📋 Copy</button>
+      <button class="btn-outline" id="copyImgTagBtn">&lt;img&gt; Tag</button>
+    </div>
+  </div>
+
+  <!-- Decode tab -->
+  <div class="tab-panel" id="tab-decode">
+    <label class="drop-zone" id="dropZone">
+      <div class="drop-zone-icon">🖼️</div>
+      <div>Drop a PNG / JPG here or click to browse</div>
+      <input type="file" id="decodeFile" accept="image/*">
+    </label>
+    <div id="decodePreview"></div>
+    <div id="decodeResult"></div>
+    <div class="decode-actions hidden" id="decodeActions">
+      <button class="btn-outline" id="copyDecodeBtn">📋 Copy text</button>
+    </div>
   </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
+/* ── Shared ── */
+const toast = document.getElementById('toast');
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+/* ── Tabs ── */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+/* ── Generate tab ── */
 const input = document.getElementById('urlInput');
 const btn = document.getElementById('generateBtn');
 const qrContainer = document.getElementById('qrcode');
@@ -129,34 +260,32 @@ const status = document.getElementById('status');
 const actions = document.getElementById('actions');
 const downloadBtn = document.getElementById('downloadBtn');
 const copyBtn = document.getElementById('copyBtn');
-const toast = document.getElementById('toast');
+const copyImgTagBtn = document.getElementById('copyImgTagBtn');
 
-let currentQR = null;
 let lastUrl = '';
 
-function showToast(msg) {
-  toast.textContent = msg;
-  toast.classList.add('show');
-  setTimeout(() => toast.classList.remove('show'), 2000);
+function getDataUrl() {
+  const canvas = qrContainer.querySelector('canvas');
+  const img = qrContainer.querySelector('img');
+  if (canvas) return canvas.toDataURL('image/png');
+  if (img) {
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth || 256;
+    c.height = img.naturalHeight || 256;
+    c.getContext('2d').drawImage(img, 0, 0);
+    return c.toDataURL('image/png');
+  }
+  return null;
 }
 
 function generate() {
   const url = input.value.trim();
-  if (!url) {
-    status.textContent = 'Please enter a URL';
-    status.className = 'error';
-    return;
-  }
+  if (!url) { status.textContent = 'Please enter a URL'; status.className = 'error'; return; }
 
   let target = url;
-  if (!/^https?:\/\//i.test(target)) {
-    target = 'https://' + target;
-  }
-
+  if (!/^https?:\/\//i.test(target)) target = 'https://' + target;
   try { new URL(target); } catch {
-    status.textContent = 'Invalid URL';
-    status.className = 'error';
-    return;
+    status.textContent = 'Invalid URL'; status.className = 'error'; return;
   }
 
   qrContainer.innerHTML = '';
@@ -168,89 +297,132 @@ function generate() {
 
   setTimeout(() => {
     try {
-      currentQR = new QRCode(qrContainer, {
-        text: target,
-        width: 256,
-        height: 256,
-        colorDark: '#1a1a2e',
-        colorLight: '#ffffff',
+      new QRCode(qrContainer, {
+        text: target, width: 256, height: 256,
+        colorDark: '#1a1a2e', colorLight: '#ffffff',
         correctLevel: QRCode.CorrectLevel.H
       });
       status.textContent = `✓ QR for ${target}`;
       status.className = 'hint';
       actions.classList.remove('hidden');
-    } catch (e) {
-      status.textContent = 'Error generating QR code';
-      status.className = 'error';
-    } finally {
-      btn.disabled = false;
-    }
+    } catch {
+      status.textContent = 'Error generating QR code'; status.className = 'error';
+    } finally { btn.disabled = false; }
   }, 50);
 }
 
-// Download PNG — grab the first <canvas> or <img>
 downloadBtn.addEventListener('click', () => {
-  const canvas = qrContainer.querySelector('canvas');
-  const img = qrContainer.querySelector('img');
-  let dataUrl = null;
-
-  if (canvas) {
-    dataUrl = canvas.toDataURL('image/png');
-  } else if (img) {
-    // Fallback: draw img to a temp canvas
-    const c = document.createElement('canvas');
-    c.width = img.naturalWidth || 256;
-    c.height = img.naturalHeight || 256;
-    const ctx = c.getContext('2d');
-    ctx.drawImage(img, 0, 0);
-    dataUrl = c.toDataURL('image/png');
-  }
-
+  const dataUrl = getDataUrl();
   if (!dataUrl) { showToast('No QR to download'); return; }
-
   const a = document.createElement('a');
-  a.href = dataUrl;
-  a.download = 'qrcode.png';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  a.href = dataUrl; a.download = 'qrcode.png';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
   showToast('Downloaded!');
 });
 
-// Copy to clipboard
 copyBtn.addEventListener('click', async () => {
   const canvas = qrContainer.querySelector('canvas');
   const img = qrContainer.querySelector('img');
-
   try {
+    let blob;
     if (canvas) {
-      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-      showToast('Copied!');
+      blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
     } else if (img) {
       const c = document.createElement('canvas');
-      c.width = img.naturalWidth || 256;
-      c.height = img.naturalHeight || 256;
+      c.width = img.naturalWidth || 256; c.height = img.naturalHeight || 256;
       c.getContext('2d').drawImage(img, 0, 0);
-      const blob = await new Promise(resolve => c.toBlob(resolve, 'image/png'));
-      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-      showToast('Copied!');
-    } else {
-      showToast('No QR to copy');
+      blob = await new Promise(r => c.toBlob(r, 'image/png'));
     }
+    if (!blob) { showToast('No QR to copy'); return; }
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    showToast('Copied!');
   } catch {
-    // Fallback: copy the URL text
-    try {
-      await navigator.clipboard.writeText(lastUrl);
-      showToast('URL copied (image copy not supported)');
-    } catch {
-      showToast('Copy failed');
-    }
+    try { await navigator.clipboard.writeText(lastUrl); showToast('URL copied (image copy not supported)'); }
+    catch { showToast('Copy failed'); }
   }
+});
+
+copyImgTagBtn.addEventListener('click', () => {
+  const dataUrl = getDataUrl();
+  if (!dataUrl) { showToast('No QR to copy'); return; }
+  const tag = `<img src="${dataUrl}" alt="QR code" width="256" height="256">`;
+  navigator.clipboard.writeText(tag)
+    .then(() => showToast('<img> tag copied!'))
+    .catch(() => showToast('Copy failed'));
 });
 
 btn.addEventListener('click', generate);
 input.addEventListener('keydown', e => { if (e.key === 'Enter') generate(); });
+
+/* ── Decode tab ── */
+const dropZone = document.getElementById('dropZone');
+const decodeFile = document.getElementById('decodeFile');
+const decodePreview = document.getElementById('decodePreview');
+const decodeResult = document.getElementById('decodeResult');
+const decodeActions = document.getElementById('decodeActions');
+const copyDecodeBtn = document.getElementById('copyDecodeBtn');
+
+let decodedText = '';
+
+function decodeImage(file) {
+  if (!file || !file.type.startsWith('image/')) {
+    decodeResult.innerHTML = '<div class="decode-result fail">Please select an image file.</div>';
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      decodePreview.innerHTML = '';
+      const preview = document.createElement('img');
+      preview.src = e.target.result;
+      decodePreview.appendChild(preview);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const result = jsQR(imageData.data, imageData.width, imageData.height);
+
+      if (result) {
+        decodedText = result.data;
+        const isUrl = /^https?:\/\//i.test(decodedText);
+        decodeResult.innerHTML = `<div class="decode-result success">
+          ${isUrl
+            ? `<a href="${decodedText}" target="_blank" rel="noopener">${decodedText}</a>`
+            : decodedText}
+        </div>`;
+        decodeActions.classList.remove('hidden');
+      } else {
+        decodedText = '';
+        decodeResult.innerHTML = '<div class="decode-result fail">No QR code found in this image.</div>';
+        decodeActions.classList.add('hidden');
+      }
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+dropZone.addEventListener('click', () => decodeFile.click());
+decodeFile.addEventListener('change', () => decodeImage(decodeFile.files[0]));
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  decodeImage(e.dataTransfer.files[0]);
+});
+
+copyDecodeBtn.addEventListener('click', () => {
+  navigator.clipboard.writeText(decodedText)
+    .then(() => showToast('Copied!'))
+    .catch(() => showToast('Copy failed'));
+});
 </script>
 </body>
 </html>
