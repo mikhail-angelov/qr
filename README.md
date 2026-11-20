@@ -21,8 +21,7 @@ Live:
 - Copy the decoded text with one click
 
 **Quick links**
-- Preset chips under the input generate a QR in one tap
-- `Redmi` → `https://mikhail-angelov.github.io/qr/`, so the app can be opened on the phone by scanning
+- Preset chips under the input generate a QR in one tap (currently none configured — see below to add one)
 
 ## How it works
 
@@ -42,9 +41,10 @@ python3 -m http.server 8000
 
 Opening `index.html` directly via `file://` also works.
 
-## Add a quick link
+## Quick links (optional)
 
-Add one line inside `<div class="presets" id="presets">` in `index.html`:
+The preset row is wired up but empty. To add a chip, put one line inside
+`<div class="presets" id="presets">` in `index.html`:
 
 ```html
 <button class="chip" data-url="https://example.com">Name</button>
