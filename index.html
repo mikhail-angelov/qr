@@ -114,6 +114,23 @@
   }
   .btn-outline:hover { background: #eef0ff; }
   .hidden { display: none; }
+  .presets {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin: -8px 0 20px;
+  }
+  .presets .chip {
+    background: #eef0ff;
+    color: #4361ee;
+    border: 2px solid #dfe3ff;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 999px;
+  }
+  .presets .chip:hover { background: #e2e6ff; border-color: #4361ee; }
 
   /* Decode tab */
   .drop-zone {
@@ -206,6 +223,9 @@
     <div class="row">
       <input type="text" id="urlInput" placeholder="https://example.com" autofocus>
       <button id="generateBtn">Generate</button>
+    </div>
+    <div class="presets" id="presets">
+      <button class="chip" data-url="https://mikhail-angelov.github.io/qr/">Redmi</button>
     </div>
     <div class="hint" id="status">Enter a URL and click Generate</div>
     <div id="qrcode"><div class="placeholder">QR will appear here</div></div>
@@ -353,6 +373,14 @@ copyImgTagBtn.addEventListener('click', () => {
 
 btn.addEventListener('click', generate);
 input.addEventListener('keydown', e => { if (e.key === 'Enter') generate(); });
+
+/* Быстрые ссылки: один тап — готовый QR для нужного устройства */
+document.querySelectorAll('#presets .chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    input.value = chip.dataset.url;
+    generate();
+  });
+});
 
 /* ── Decode tab ── */
 const dropZone = document.getElementById('dropZone');
